@@ -20,8 +20,8 @@ ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
 SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 */
 
-#ifndef NRF52832_ISM_H_
-#define NRF52832_ISM_H_
+#ifndef _OBD2PRO_BLE_NRF52_ISM_H_
+#define _OBD2PRO_BLE_NRF52_ISM_H_
 
 #include <stdint.h>
 
@@ -55,6 +55,7 @@ struct stCallBackPointers
 	void* pUpdateMessageSignalsFromBytes;
 	void* pUpdateBytesFromSignals;
 	void* pUpdateBytesFromRawSignals;
+	void* pSendCommandToMainChip;
 };
 
 // map - exposed methods
@@ -158,4 +159,4 @@ int AES_Decrypt(void* data, const void* key, const void* iv, uint8_t keyLen, uin
  */
 int AES_Encrypt(void* data, const void* key, const void* iv, uint8_t keyLen, uint16_t dataLen, uint8_t algo);
 
-#endif /* NRF52832_ISM_H_ */
+#endif /* _OBD2PRO_BLE_NRF52_ISM_H_ */
