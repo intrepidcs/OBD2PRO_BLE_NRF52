@@ -7,6 +7,7 @@
 #define ISM_TO_MCHIP_COMMANDS_H_
 
 #define ISM_CMD_CTRL_LED_COLOR (0x01)
+#define ISM_CMD_CTRL_PWR_OUT_OBD (0x02)
 
 typedef struct _sfifoISMChipLEDControl
 {
