@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2010 - 2017, Nordic Semiconductor ASA
+Copyright (c) 2010 - 2018, Nordic Semiconductor ASA
 
 All rights reserved.
 
@@ -62,6 +62,12 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 /* The registers PSELSCL, PSELSDA were restructured into a struct. */
 #define PSELSCL       PSEL.SCL
 #define PSELSDA       PSEL.SDA
+
+
+/* LPCOMP */
+/* The hysteresis control enumerated values has changed name for nRF52840 devices. */
+#define LPCOMP_HYST_HYST_NoHyst     LPCOMP_HYST_HYST_Disabled
+#define LPCOMP_HYST_HYST_Hyst50mV   LPCOMP_HYST_HYST_Enabled
 
 
 /* From nrf52_name_change.h. Several macros changed in different versions of nRF52 headers. By defining the following, any code written for any version of nRF52 headers will still compile. */

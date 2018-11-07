@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2012 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2012 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include "sdk_common.h"
 #if NRF_MODULE_ENABLED(BLE_IAS_C)
@@ -48,7 +48,7 @@
 #include "ble_db_discovery.h"
 
 
-void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, const ble_db_discovery_evt_t * p_evt)
+void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, ble_db_discovery_evt_t const * p_evt)
 {
     ble_ias_c_evt_t evt;
 
@@ -56,19 +56,14 @@ void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, const ble_db_discovery_evt_
     evt.evt_type = BLE_IAS_C_EVT_DISCOVERY_FAILED;
     evt.conn_handle = p_evt->conn_handle;
 
-    const ble_gatt_db_char_t * p_chars = p_evt->params.discovered_db.charateristics;
+    ble_gatt_db_char_t const * p_chars = p_evt->params.discovered_db.charateristics;
 
     // Check if the Immediate Alert Service was discovered.
-    if (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE
-        &&
-        p_evt->params.discovered_db.srv_uuid.uuid == BLE_UUID_IMMEDIATE_ALERT_SERVICE
-        &&
-        p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_BLE)
+    if (   (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE)
+        && (p_evt->params.discovered_db.srv_uuid.uuid == BLE_UUID_IMMEDIATE_ALERT_SERVICE)
+        && (p_evt->params.discovered_db.srv_uuid.type == BLE_UUID_TYPE_BLE))
     {
-
-        uint32_t i;
-
-        for (i = 0; i < p_evt->params.discovered_db.char_count; i++)
+        for (uint32_t i = 0; i < p_evt->params.discovered_db.char_count; i++)
         {
             // The Alert Level characteristic in the Immediate Alert Service instance is found
             // on peer. Check if it has the correct property 'Write without response'.
@@ -141,9 +136,10 @@ static void on_disconnect(ble_ias_c_t * p_ias_c, ble_evt_t const * p_ble_evt)
 }
 
 
-void ble_ias_c_on_ble_evt(ble_ias_c_t * p_ias_c, ble_evt_t const * p_ble_evt)
+void ble_ias_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 {
-    uint32_t err_code = NRF_SUCCESS;
+    uint32_t      err_code = NRF_SUCCESS;
+    ble_ias_c_t * p_ias_c  = (ble_ias_c_t *)p_context;
 
     switch (p_ble_evt->header.evt_id)
     {
@@ -156,7 +152,7 @@ void ble_ias_c_on_ble_evt(ble_ias_c_t * p_ias_c, ble_evt_t const * p_ble_evt)
             break;
     }
 
-    if (err_code != NRF_SUCCESS && p_ias_c->error_handler != 0)
+    if ((err_code != NRF_SUCCESS) && (p_ias_c->error_handler != NULL))
     {
         p_ias_c->error_handler(err_code);
     }

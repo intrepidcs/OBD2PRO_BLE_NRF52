@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include <stdint.h>
 #include <string.h>
@@ -87,7 +87,7 @@
 #define SOCP_RSP_PROCEDURE_NOT_COMPLETED              0x04
 #define SOCP_RSP_OUT_OF_RANGE                         0x05
 
-static void ble_socp_decode(uint8_t data_len, uint8_t * p_data, ble_cgms_socp_value_t * p_socp_val)
+static void ble_socp_decode(uint8_t data_len, uint8_t const * p_data, ble_cgms_socp_value_t * p_socp_val)
 {
     p_socp_val->opcode      = 0xFF;
     p_socp_val->operand_len = 0;
@@ -100,7 +100,7 @@ static void ble_socp_decode(uint8_t data_len, uint8_t * p_data, ble_cgms_socp_va
     if (data_len > 1)
     {
         p_socp_val->operand_len = data_len - 1;
-        p_socp_val->p_operand   = &p_data[1]; // lint !e416
+        p_socp_val->p_operand   = (uint8_t*)&p_data[1]; // lint !e416
     }
 }
 
@@ -274,7 +274,7 @@ static bool is_feature_present(nrf_ble_cgms_t * p_cgms, uint32_t feature)
  * @param[in]   p_cgms        Service instance.
  * @param[in]   p_evt_write   WRITE event to be handled.
  */
-void on_socp_value_write(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_write_t * p_evt_write)
+static void on_socp_value_write(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_write_t const * p_evt_write)
 {
     ble_cgms_socp_value_t                 socp_request;
     nrf_ble_cgms_evt_t                    evt;
@@ -407,8 +407,8 @@ void on_socp_value_write(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_write_t * p_evt_
 }
 
 
-void cgms_socp_on_rw_auth_req(nrf_ble_cgms_t                       * p_cgms,
-                              ble_gatts_evt_rw_authorize_request_t * p_auth_req)
+void cgms_socp_on_rw_auth_req(nrf_ble_cgms_t                             * p_cgms,
+                              ble_gatts_evt_rw_authorize_request_t const * p_auth_req)
 {
     if (p_auth_req->type == BLE_GATTS_AUTHORIZE_TYPE_WRITE)
     {

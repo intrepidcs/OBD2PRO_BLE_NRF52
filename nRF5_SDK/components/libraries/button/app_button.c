@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2012 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2012 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include "sdk_common.h"
 #if NRF_MODULE_ENABLED(BUTTON)
@@ -52,8 +52,8 @@ static uint32_t                       m_detection_delay;           /**< Delay be
 APP_TIMER_DEF(m_detection_delay_timer_id);  /**< Polling timer id. */
 
 
-static uint32_t m_pin_state;
-static uint32_t m_pin_transition;
+static uint64_t m_pin_state;
+static uint64_t m_pin_transition;
 
 /**@brief Function for handling the timeout that delays reporting buttons as pushed.
  *
@@ -75,12 +75,12 @@ static void detection_delay_timeout_handler(void * p_context)
     for (i = 0; i < m_button_count; i++)
     {
         app_button_cfg_t const * p_btn = &mp_buttons[i];
-        uint32_t btn_mask = 1 << p_btn->pin_no;
+        uint64_t btn_mask = 1ULL << p_btn->pin_no;
         if (btn_mask & m_pin_transition)
         {
             m_pin_transition &= ~btn_mask;
             bool pin_is_set = nrf_drv_gpiote_in_is_set(p_btn->pin_no);
-            if ((m_pin_state & (1 << p_btn->pin_no)) == (pin_is_set << p_btn->pin_no))
+            if ((m_pin_state & (1ULL << p_btn->pin_no)) == (((uint64_t)pin_is_set) << p_btn->pin_no))
             {
                 uint32_t transition = !(pin_is_set ^ (p_btn->active_state == APP_BUTTON_ACTIVE_HIGH));
 
@@ -96,7 +96,7 @@ static void detection_delay_timeout_handler(void * p_context)
 static void gpiote_event_handler(nrf_drv_gpiote_pin_t pin, nrf_gpiote_polarity_t action)
 {
     uint32_t err_code;
-    uint32_t pin_mask = 1 << pin;
+    uint64_t pin_mask = 1ULL << pin;
 
     // Start detection timer. If timer is already running, the detection period is restarted.
     // NOTE: Using the p_context parameter of app_timer_start() to transfer the pin states to the
@@ -164,7 +164,11 @@ uint32_t app_button_init(app_button_cfg_t const *       p_buttons,
     {
         app_button_cfg_t const * p_btn = &p_buttons[button_count];
 
+#if defined(BUTTON_HIGH_ACCURACY_ENABLED) && (BUTTON_HIGH_ACCURACY_ENABLED == 1)
+        nrf_drv_gpiote_in_config_t config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(p_btn->hi_accuracy);
+#else
         nrf_drv_gpiote_in_config_t config = GPIOTE_CONFIG_IN_SENSE_TOGGLE(false);
+#endif
         config.pull = p_btn->pull_cfg;
 
         err_code = nrf_drv_gpiote_in_init(p_btn->pin_no, &config, gpiote_event_handler);

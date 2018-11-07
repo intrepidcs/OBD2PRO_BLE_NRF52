@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2014 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2014 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include <stddef.h>
 #include <string.h>
@@ -51,8 +51,9 @@
 #include "nrf_soc.h"
 #include "ser_config.h"
 #include "ser_phy_debug_comm.h"
-#define NRF_LOG_MODULE_NAME "SPHY_HCI"
+#define NRF_LOG_MODULE_NAME sphy_hci
 #include "nrf_log.h"
+NRF_LOG_MODULE_REGISTER();
 // hide globals for release version, expose for debug version
 #if defined(SER_PHY_HCI_DEBUG_ENABLE)
 #define _static
@@ -71,13 +72,14 @@
 #define PKT_TYPE_VENDOR_SPECIFIC     14                                                /**< Packet type vendor specific. */
 #define PKT_TYPE_ACK                 0                                                 /**< Packet type acknowledgement. */
 #define PKT_TYPE_LINK_CONTROL        15                                                /**< Packet type link control. */
+#define PKT_TYPE_RESET               5                                                 /**< Packet type reset. */
 #define DATA_INTEGRITY_MASK          (1 << 6)                                          /**< Mask for data integrity bit in the packet header. */
 #define RELIABLE_PKT_MASK            (1 << 7)                                          /**< Mask for reliable packet bit in the packet header. */
 #define INITIAL_ACK_NUMBER_EXPECTED  0                                                 /**< Initial acknowledge number expected. */
 #define INITIAL_SEQ_NUMBER           INITIAL_ACK_NUMBER_EXPECTED                       /**< Initial acknowledge number transmitted. */
 #define INVALID_PKT_TYPE             0xFFFFFFFFu                                       /**< Internal invalid packet type value. */
 #define MAX_TRANSMISSION_TIME_ms     (MAX_PACKET_SIZE_IN_BITS * BAUD_TIME_us / 1000uL) /**< Max transmission time of a single application packet over UART in units of mseconds. */
-#define RETRANSMISSION_TIMEOUT_IN_ms (10uL * MAX_TRANSMISSION_TIME_ms)                 /**< Retransmission timeout for application packet in units of mseconds. */
+#define RETRANSMISSION_TIMEOUT_IN_ms (50uL * MAX_TRANSMISSION_TIME_ms)                 /**< Retransmission timeout for application packet in units of mseconds. */
 
 #ifdef  HCI_LINK_CONTROL
 #define HCI_PKT_SYNC        0x7E01u                                                    /**< Link Control Packet: type SYNC */
@@ -746,7 +748,7 @@ static void hci_slip_event_handler(ser_phy_hci_slip_evt_t * p_event)
 
     if ( p_event->evt_type == SER_PHY_HCI_SLIP_EVT_PKT_SENT )
     {
-        NRF_LOG_DEBUG("EVT_PKT_SENT\r\n");
+        NRF_LOG_DEBUG("EVT_PKT_SENT");
 
         DEBUG_EVT_SLIP_PACKET_TXED(0);
         event.evt_source                    = HCI_SLIP_EVT;
@@ -762,7 +764,7 @@ static void hci_slip_event_handler(ser_phy_hci_slip_evt_t * p_event)
     }
     else if ( p_event->evt_type == SER_PHY_HCI_SLIP_EVT_ACK_SENT )
     {
-        NRF_LOG_DEBUG("EVT_ACK_SENT\r\n");
+        NRF_LOG_DEBUG("EVT_ACK_SENT");
 
         DEBUG_EVT_SLIP_ACK_TXED(0);
         event.evt_source                    = HCI_SLIP_EVT;
@@ -791,10 +793,14 @@ static void hci_slip_event_handler(ser_phy_hci_slip_evt_t * p_event)
             event.evt.ser_phy_slip_evt.evt_params.received_pkt.p_buffer,
             event.evt.ser_phy_slip_evt.evt_params.received_pkt.num_of_bytes);
 
-        NRF_LOG_DEBUG("EVT_PKT_RECEIVED 0x%X/%u\r\n", packet_type,
+        NRF_LOG_DEBUG("EVT_PKT_RECEIVED 0x%X/%u", packet_type,
             p_event->evt_params.received_pkt.num_of_bytes);
 
-        if (packet_type == PKT_TYPE_ACK )
+        if (packet_type == PKT_TYPE_RESET)
+        {
+            NVIC_SystemReset();
+        }
+        else if (packet_type == PKT_TYPE_ACK )
         {
             DEBUG_EVT_SLIP_ACK_RXED(0);
 #ifndef HCI_LINK_CONTROL
@@ -857,7 +863,7 @@ static void hci_slip_event_handler(ser_phy_hci_slip_evt_t * p_event)
     }
     else
     {
-        NRF_LOG_DEBUG("EVT_HW_ERROR\r\n");
+        NRF_LOG_DEBUG("EVT_HW_ERROR");
     }
 }
 

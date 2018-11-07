@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2012 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2012 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /**@file
  *
@@ -47,9 +47,13 @@
  * @details  This module contains APIs to read and interact with the Battery Service of a remote
  *           device.
  *
- * @note     The application must propagate BLE stack events to this module by calling
- *           ble_hrs_c_on_ble_evt().
- *
+ * @note    The application must register this module as BLE event observer using the
+ *          NRF_SDH_BLE_OBSERVER macro. Example:
+ *          @code
+ *              ble_bas_c_t instance;
+ *              NRF_SDH_BLE_OBSERVER(anything, BLE_BAS_C_BLE_OBSERVER_PRIO,
+ *                                   ble_bas_c_on_ble_evt, &instance);
+ *          @endcode
  */
 
 #ifndef BLE_BAS_C_H__
@@ -58,10 +62,34 @@
 #include <stdint.h>
 #include "ble.h"
 #include "ble_db_discovery.h"
+#include "nrf_sdh_ble.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**@brief   Macro for defining a ble_bas_c instance.
+ *
+ * @param   _name   Name of the instance.
+ * @hideinitializer
+ */
+#define BLE_BAS_C_DEF(_name)                                                                        \
+static ble_bas_c_t _name;                                                                           \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
+                     BLE_BAS_C_BLE_OBSERVER_PRIO,                                                   \
+                     ble_bas_c_on_ble_evt, &_name)
+
+/** @brief Macro for defining multiple ble_bas_c instances.
+ *
+ * @param   _name   Name of the array of instances.
+ * @param   _cnt    Number of instances to define.
+ * @hideinitializer
+ */
+#define BLE_BAS_C_ARRAY_DEF(_name, _cnt)                 \
+static ble_bas_c_t _name[_cnt];                          \
+NRF_SDH_BLE_OBSERVERS(_name ## _obs,                     \
+                      BLE_BAS_C_BLE_OBSERVER_PRIO,       \
+                      ble_bas_c_on_ble_evt, &_name, _cnt)
 
 /**
  * @defgroup bas_c_enums Enumerations
@@ -82,7 +110,6 @@ typedef enum
  * @defgroup bas_c_structs Structures
  * @{
  */
-
 
 /**@brief Structure containing the handles related to the Battery Service found on the peer. */
 typedef struct
@@ -127,9 +154,7 @@ typedef void (* ble_bas_c_evt_handler_t) (ble_bas_c_t * p_bas_bas_c, ble_bas_c_e
  * @{
  */
 
-/**@brief      Battery Service Client structure.
-
- */
+/**@brief   Battery Service Client structure. */
 struct ble_bas_c_s
 {
     uint16_t                conn_handle;     /**< Connection handle as provided by the SoftDevice. */
@@ -137,8 +162,7 @@ struct ble_bas_c_s
     ble_bas_c_evt_handler_t evt_handler;     /**< Application event handler to be called when there is an event related to the Battery service. */
 };
 
-/**@brief   Battery Service Client initialization structure.
- */
+/**@brief   Battery Service Client initialization structure. */
 typedef struct
 {
     ble_bas_c_evt_handler_t evt_handler;  /**< Event handler to be called by the Battery Service Client module whenever there is an event related to the Battery Service. */
@@ -176,10 +200,10 @@ uint32_t ble_bas_c_init(ble_bas_c_t * p_ble_bas_c, ble_bas_c_init_t * p_ble_bas_
  *
  * @note      This function must be called by the application.
  *
- * @param[in] p_ble_bas_c Pointer to the Battery Service client structure.
- * @param[in] p_ble_evt   Pointer to the BLE event.
+ * @param[in] p_ble_evt     Pointer to the BLE event.
+ * @param[in] p_context     Pointer to the Battery Service client structure.
  */
-void ble_bas_c_on_ble_evt(ble_bas_c_t * p_ble_bas_c, const ble_evt_t * p_ble_evt);
+void ble_bas_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
 
 
 /**@brief   Function for enabling notifications on the Battery Level characteristic.
@@ -219,7 +243,7 @@ uint32_t ble_bas_c_bl_read(ble_bas_c_t * p_ble_bas_c);
  * @param[in] p_evt Pointer to the event received from the database discovery module.
  *
  */
-void ble_bas_on_db_disc_evt(ble_bas_c_t * p_ble_bas_c, const ble_db_discovery_evt_t * p_evt);
+void ble_bas_on_db_disc_evt(ble_bas_c_t * p_ble_bas_c, ble_db_discovery_evt_t const * p_evt);
 
 
 /**@brief     Function for assigning handles to a this instance of bas_c.
@@ -240,7 +264,6 @@ uint32_t ble_bas_c_handles_assign(ble_bas_c_t *    p_ble_bas_c,
                                   ble_bas_c_db_t * p_peer_handles);
 
 /** @} */ // End tag for Function group.
-
 
 #ifdef __cplusplus
 }

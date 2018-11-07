@@ -2,10 +2,10 @@ ENTRY(Reset_HandlerSys)
 
 MEMORY
 {
-	FLASH_SOFTDEVICE (RX) : ORIGIN = 0x00000000, LENGTH = 124K
-	FLASH (RX)            : ORIGIN = 0x0001f000, LENGTH = 388K
-	SRAM_SOFTDEVICE (RWX) : ORIGIN = 0x20000000, LENGTH = 0x1fc0
-	SRAM (RWX)            : ORIGIN = 0x20001fc0, LENGTH = 0xe040
+	FLASH_SOFTDEVICE (RX) : ORIGIN = 0x00000000, LENGTH = 152K
+	FLASH (RX)            : ORIGIN = 0x00026000, LENGTH = 360K
+	SRAM_SOFTDEVICE (RWX) : ORIGIN = 0x20000000, LENGTH = 0x2218
+	SRAM (RWX)            : ORIGIN = 0x20002218, LENGTH = 0xdde8
 }
 
 _estack = 0x20010000;
@@ -19,13 +19,13 @@ SECTIONS
 	{
 		KEEP(*(.softdevice))
 		FILL(0xFFFFFFFF);
-		. = 0x1f000;
+		. = 0x26000;
 	} > FLASH_SOFTDEVICE
 
 	.softdevice_sram :
 	{
 		FILL(0x00000000);
-		. = 0x1fc0;
+		. = 0x2218;
 	} > SRAM_SOFTDEVICE
 
 	.isr_vector :

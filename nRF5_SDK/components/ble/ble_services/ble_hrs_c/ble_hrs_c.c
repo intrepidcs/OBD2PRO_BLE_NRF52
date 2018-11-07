@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2012 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2012 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /**@cond To Make Doxygen skip documentation generation for this file.
  * @{
@@ -48,8 +48,9 @@
 #include "ble_srv_common.h"
 #include "ble_gattc.h"
 
-#define NRF_LOG_MODULE_NAME "BLE_HRS_C"
+#define NRF_LOG_MODULE_NAME ble_hrs_c
 #include "nrf_log.h"
+NRF_LOG_MODULE_REGISTER();
 
 #define HRM_FLAG_MASK_HR_16BIT  (0x01 << 0)           /**< Bit mask used to extract the type of heart rate value. This is used to find if the received heart rate is a 16 bit value or an 8 bit value. */
 #define HRM_FLAG_MASK_HR_RR_INT (0x01 << 4)           /**< Bit mask used to extract the presence of RR_INTERVALS. This is used to find if the received measurement includes RR_INTERVALS. */
@@ -112,15 +113,11 @@ static void tx_buffer_process(void)
             err_code = sd_ble_gattc_write(m_tx_buffer[m_tx_index].conn_handle,
                                           &m_tx_buffer[m_tx_index].req.write_req.gattc_params);
         }
-        if (err_code == NRF_SUCCESS)
-        {
-            m_tx_index++;
-            m_tx_index &= TX_BUFFER_MASK;
-        }
-        else
+
+        if (err_code != NRF_SUCCESS)
         {
             NRF_LOG_DEBUG("SD Read/Write API returns error. This message sending will be "
-                          "attempted again..\r\n");
+                          "attempted again..");
         }
     }
 }
@@ -138,6 +135,18 @@ static void on_write_rsp(ble_hrs_c_t * p_ble_hrs_c, const ble_evt_t * p_ble_evt)
     {
         return;
     }
+
+    if ((p_ble_evt->evt.gattc_evt.gatt_status == BLE_GATT_STATUS_ATTERR_INSUF_AUTHENTICATION) ||
+        (p_ble_evt->evt.gattc_evt.gatt_status == BLE_GATT_STATUS_ATTERR_INSUF_ENCRYPTION))
+    {
+        // Do nothing to reattempt write.
+    }
+    else
+    {
+        m_tx_index++;
+        m_tx_index &= TX_BUFFER_MASK;
+    }
+
     // Check if there is any message to be sent across to the peer and send it.
     tx_buffer_process();
 }
@@ -158,12 +167,12 @@ static void on_hvx(ble_hrs_c_t * p_ble_hrs_c, const ble_evt_t * p_ble_evt)
     // Check if the event is on the link for this instance
     if (p_ble_hrs_c->conn_handle != p_ble_evt->evt.gattc_evt.conn_handle)
     {
-        NRF_LOG_DEBUG("Received HVX on link 0x%x, not associated to this instance, ignore\r\n",
+        NRF_LOG_DEBUG("Received HVX on link 0x%x, not associated to this instance, ignore",
                       p_ble_evt->evt.gattc_evt.conn_handle);
         return;
     }
 
-    NRF_LOG_DEBUG("Received HVX on link 0x%x, hrm_handle 0x%x\r\n",
+    NRF_LOG_DEBUG("Received HVX on link 0x%x, hrm_handle 0x%x",
     p_ble_evt->evt.gattc_evt.params.hvx.handle,
     p_ble_hrs_c->peer_hrs_db.hrm_handle);
 
@@ -261,7 +270,7 @@ void ble_hrs_on_db_disc_evt(ble_hrs_c_t * p_ble_hrs_c, const ble_db_discovery_ev
             }
         }
 
-        NRF_LOG_DEBUG("Heart Rate Service discovered at peer.\r\n");
+        NRF_LOG_DEBUG("Heart Rate Service discovered at peer.");
         //If the instance has been assigned prior to db_discovery, assign the db_handles
         if (p_ble_hrs_c->conn_handle != BLE_CONN_HANDLE_INVALID)
         {
@@ -297,9 +306,10 @@ uint32_t ble_hrs_c_init(ble_hrs_c_t * p_ble_hrs_c, ble_hrs_c_init_t * p_ble_hrs_
     return ble_db_discovery_evt_register(&hrs_uuid);
 }
 
-
-void ble_hrs_c_on_ble_evt(ble_hrs_c_t * p_ble_hrs_c, const ble_evt_t * p_ble_evt)
+void ble_hrs_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 {
+    ble_hrs_c_t * p_ble_hrs_c = (ble_hrs_c_t *)p_context;
+
     if ((p_ble_hrs_c == NULL) || (p_ble_evt == NULL))
     {
         return;
@@ -329,7 +339,7 @@ void ble_hrs_c_on_ble_evt(ble_hrs_c_t * p_ble_hrs_c, const ble_evt_t * p_ble_evt
  */
 static uint32_t cccd_configure(uint16_t conn_handle, uint16_t handle_cccd, bool enable)
 {
-    NRF_LOG_DEBUG("Configuring CCCD. CCCD Handle = %d, Connection Handle = %d\r\n",
+    NRF_LOG_DEBUG("Configuring CCCD. CCCD Handle = %d, Connection Handle = %d",
         handle_cccd,conn_handle);
 
     tx_message_t * p_msg;

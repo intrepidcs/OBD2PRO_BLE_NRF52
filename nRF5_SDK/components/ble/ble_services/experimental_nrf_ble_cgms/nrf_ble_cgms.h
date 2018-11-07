@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /** @file
  *
@@ -52,9 +52,13 @@
  *          information between the sensor and the collector. The Specific Operations Control Point
  *          is used to stop and start monitoring sessions, among other things.
  *
- * @note The application must propagate BLE stack events to the Continuous Glucose Monitoring
- *       Service module by calling @ref nrf_ble_cgms_on_ble_evt() from the
- *       @ref softdevice_handler callback.
+ * @note    The application must register this module as BLE event observer using the
+ *          NRF_SDH_BLE_OBSERVER macro. Example:
+ *          @code
+ *              nrf_ble_cgms_t instance;
+ *              NRF_SDH_BLE_OBSERVER(anything, NRF_BLE_CGMS_BLE_OBSERVER_PRIO,
+ *                                   nrf_ble_cgms_on_ble_evt, &instance);
+ *          @endcode
  */
 
 #ifndef NRF_BLE_CGMS_H__
@@ -63,10 +67,22 @@
 #include "ble_srv_common.h"
 #include "sdk_errors.h"
 #include "ble_racp.h"
+#include "nrf_sdh_ble.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**@brief   Macro for defining a nrf_ble_cgms instance.
+ *
+ * @param   _name   Name of the instance.
+ * @hideinitializer
+ */
+#define NRF_BLE_CGMS_DEF(_name)                                                                     \
+static nrf_ble_cgms_t _name;                                                                        \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
+                     NRF_BLE_CGMS_BLE_OBSERVER_PRIO,                                                \
+                     nrf_ble_cgms_on_ble_evt, &_name)
 
 /**@name CGM Feature characteristic defines
  * @{ */
@@ -75,7 +91,7 @@ extern "C" {
 #define NRF_BLE_CGMS_FEAT_HYPO_ALERTS_SUPPORTED                           (0x01 << 2)  //!< Hypo Alerts supported.
 #define NRF_BLE_CGMS_FEAT_HYPER_ALERTS_SUPPORTED                          (0x01 << 3)  //!< Hyper Alerts supported.
 #define NRF_BLE_CGMS_FEAT_RATE_OF_INCREASE_DECREASE_ALERTS_SUPPORTED      (0x01 << 4)  //!< Rate of Increase/Decrease Alerts supported.
-#define NRF_BLE_CGMS_FEAT_DEVICE_SPECIFIC_ALERT_SUPPORTED                (0x01 << 5)  //!< Device Specific Alert supported.
+#define NRF_BLE_CGMS_FEAT_DEVICE_SPECIFIC_ALERT_SUPPORTED                 (0x01 << 5)  //!< Device Specific Alert supported.
 #define NRF_BLE_CGMS_FEAT_SENSOR_MALFUNCTION_DETECTION_SUPPORTED          (0x01 << 6)  //!< Sensor Malfunction Detection supported.
 #define NRF_BLE_CGMS_FEAT_SENSOR_TEMPERATURE_HIGH_LOW_DETECTION_SUPPORTED (0x01 << 7)  //!< Sensor Temperature High-Low Detection supported.
 #define NRF_BLE_CGMS_FEAT_SENSOR_RESULT_HIGH_LOW_DETECTION_SUPPORTED      (0x01 << 8)  //!< Sensor Result High-Low Detection supported.
@@ -300,10 +316,11 @@ typedef struct
 typedef struct
 {
     uint8_t          racp_proc_operator;                                                    /**< Operator of the current request. */
-    uint8_t          racp_proc_record_ndx;                                                  /**< Current record index. */
-    uint8_t          racp_proc_records_reported;                                            /**< Number of reported records. */
-    uint8_t          racp_proc_records_reported_since_txcomplete;                           /**< Number of reported records since the last TX_COMPLETE event. */
-    ble_racp_value_t racp_request;
+    uint16_t         racp_proc_record_ndx;                                                  /**< Current record index. */
+    uint16_t         racp_proc_records_ndx_last_to_send;                                    /**< The last record to send, can be used together with racp_proc_record_ndx to determine a range of records to send. (used by greater/less filters). */
+    uint16_t         racp_proc_records_reported;                                            /**< Number of reported records. */
+    uint16_t         racp_proc_records_reported_since_txcomplete;                           /**< Number of reported records since the last TX_COMPLETE event. */
+    ble_racp_value_t racp_request;                                                          /**< RACP procedure that has been requested from the peer. */
     ble_racp_value_t pending_racp_response;                                                 /**< RACP response to be sent. */
     uint8_t          pending_racp_response_operand[NRF_BLE_CGMS_RACP_PENDING_OPERANDS_MAX]; /**< Operand of the RACP response to be sent. */
 } nrf_ble_cgms_racp_t;
@@ -344,6 +361,7 @@ struct ble_cgms_s
 
 /** @} */
 
+
 /**
  * @defgroup nrf_ble_cgms_functions Functions
  * @{
@@ -380,10 +398,10 @@ ret_code_t nrf_ble_cgms_init(nrf_ble_cgms_t * p_cgms, const nrf_ble_cgms_init_t 
  *
  * @details Handles all events from the BLE stack that are of interest to the CGM Service.
  *
- * @param[in] p_cgms    Instance of the CGM Service.
  * @param[in] p_ble_evt Event received from the BLE stack.
+ * @param[in] p_context Instance of the CGM Service.
  */
-void nrf_ble_cgms_on_ble_evt(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt);
+void nrf_ble_cgms_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
 
 
 /**@brief Function for reporting a new glucose measurement to the CGM Service module.

@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2014 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2014 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /** @file
  *
@@ -62,8 +62,13 @@
  *          to the application. The current time is then available in the params field of the
  *          passed @ref ble_cts_c_evt_t structure.
  *
- * @note The application must propagate BLE stack events to this module by calling
- *       ble_cts_c_on_ble_evt() from the @ref softdevice_handler callback function.
+ * @note    The application must register this module as BLE event observer using the
+ *          NRF_SDH_BLE_OBSERVER macro. Example:
+ *          @code
+ *              ble_cts_c_t instance;
+ *              NRF_SDH_BLE_OBSERVER(anything, BLE_CTS_C_BLE_OBSERVER_PRIO,
+ *                                   ble_cts_c_on_ble_evt, &instance);
+ *          @endcode
  */
 
 #ifndef BLE_CTS_C_H__
@@ -74,11 +79,35 @@
 #include "ble.h"
 #include "ble_date_time.h"
 #include "ble_db_discovery.h"
+#include "nrf_sdh_ble.h"
 #include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**@brief   Macro for defining a ble_bps instance.
+ *
+ * @param   _name   Name of the instance.
+ * @hideinitializer
+ */
+#define BLE_CTS_C_DEF(_name)                                                                        \
+static ble_cts_c_t _name;                                                                           \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
+                     BLE_CTS_C_BLE_OBSERVER_PRIO,                                                   \
+                     ble_cts_c_on_ble_evt, &_name)
+
+/** @brief Macro for defining multiple ble_cts_c instances.
+ *
+ * @param   _name   Name of the array of instances.
+ * @param   _cnt    Number of instances to define.
+ * @hideinitializer
+ */
+#define BLE_CTS_C_ARRAY_DEF(_name, _cnt)                 \
+static ble_cts_c_t _name[_cnt];                          \
+NRF_SDH_BLE_OBSERVERS(_name ## _obs,                     \
+                      BLE_CTS_C_BLE_OBSERVER_PRIO,       \
+                      ble_cts_c_on_ble_evt, &_name, _cnt)
 
 
 /**@brief "Day Date Time" field of the "Exact Time 256" field of the Current Time Characteristic. */
@@ -199,10 +228,10 @@ uint32_t ble_cts_c_init(ble_cts_c_t * p_cts, const ble_cts_c_init_t * p_cts_init
  *          Current Time Service client. This is a callback function that must be dispatched
  *          from main application context.
  *
- * @param[in] p_cts      Current Time Service client structure.
- * @param[in] p_ble_evt  Event received from the BLE stack.
+ * @param[in] p_ble_evt     Event received from the BLE stack.
+ * @param[in] p_context     Current Time Service client structure.
  */
-void ble_cts_c_on_ble_evt(ble_cts_c_t * p_cts, const ble_evt_t * p_ble_evt);
+void ble_cts_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
 
 
 /**@brief Function for checking whether the peer's Current Time Service instance and the Current Time

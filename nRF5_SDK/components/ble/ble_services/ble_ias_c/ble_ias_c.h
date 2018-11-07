@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2012 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2012 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 /** @file
  *
@@ -51,8 +51,13 @@
  *          @ref BLE_IAS_C_EVT_DISCOVERY_COMPLETE event. The application can use @ref
  *          ble_ias_c_send_alert_level function to signal alerts to the peer.
  *
- * @note The application must propagate BLE stack events to this module by calling
- *       ble_ias_c_on_ble_evt() from the @ref softdevice_handler callback function.
+ * @note    The application must register this module as BLE event observer using the
+ *          NRF_SDH_BLE_OBSERVER macro. Example:
+ *          @code
+ *              ble_ias_c_t instance;
+ *              NRF_SDH_BLE_OBSERVER(anything, BLE_IAS_C_BLE_OBSERVER_PRIO,
+ *                                   ble_ias_c_on_ble_evt, &instance);
+ *          @endcode
  */
 
 #ifndef BLE_IAS_C_H__
@@ -63,10 +68,35 @@
 #include "ble_gattc.h"
 #include "ble.h"
 #include "ble_db_discovery.h"
+#include "nrf_sdh_ble.h"
 
 #ifdef __cplusplus
 extern "C" {
 #endif
+
+/**@brief   Macro for defining a ble_ias_c instance.
+ *
+ * @param   _name   Name of the instance.
+ * @hideinitializer
+ */
+#define BLE_IAS_C_DEF(_name)                                                                        \
+static ble_ias_c_t _name;                                                                           \
+NRF_SDH_BLE_OBSERVER(_name ## _obs,                                                                 \
+                     BLE_IAS_C_BLE_OBSERVER_PRIO,                                                   \
+                     ble_ias_c_on_ble_evt, &_name)
+
+/** @brief Macro for defining multiple ble_ias_c instances.
+ *
+ * @param   _name   Name of the array of instances.
+ * @param   _cnt    Number of instances to define.
+ * @hideinitializer
+ */
+#define BLE_IAS_C_ARRAY_DEF(_name, _cnt)                 \
+static ble_ias_c_t _name[_cnt];                          \
+NRF_SDH_BLE_OBSERVERS(_name ## _obs,                     \
+                      BLE_IAS_C_BLE_OBSERVER_PRIO,       \
+                      ble_ias_c_on_ble_evt, &_name, _cnt)
+
 
 // Forward declaration of the ble_ias_c_t type.
 typedef struct ble_ias_c_s ble_ias_c_t;
@@ -108,6 +138,7 @@ typedef struct
     ble_srv_error_handler_t   error_handler;      /**< Function to be called in case of an error. */
 } ble_ias_c_init_t;
 
+
 /**@brief Function for initializing the Immediate Alert Service client.
  *
  * @details This call allows the application to initialize the Immediate Alert Service client.
@@ -120,7 +151,8 @@ typedef struct
  *
  * @return      NRF_SUCCESS on successful initialization of service.
  */
-uint32_t ble_ias_c_init(ble_ias_c_t * p_ias_c, const ble_ias_c_init_t * p_ias_c_init);
+uint32_t ble_ias_c_init(ble_ias_c_t * p_ias_c, ble_ias_c_init_t const * p_ias_c_init);
+
 
 /**@brief Function for sending alert level to the peer.
  *
@@ -131,16 +163,18 @@ uint32_t ble_ias_c_init(ble_ias_c_t * p_ias_c, const ble_ias_c_init_t * p_ias_c_
  *
  * @return      NRF_SUCCESS on success, otherwise an error code.
  */
-uint32_t ble_ias_c_send_alert_level(const ble_ias_c_t * p_ias_c, uint8_t alert_level);
+uint32_t ble_ias_c_send_alert_level(ble_ias_c_t const * p_ias_c, uint8_t alert_level);
+
 
 /**@brief Function for handling the Application's BLE Stack events for Immediate Alert Service client.
  *
  * @details Handles all events from the BLE stack of interest to the Immediate Alert Service client.
  *
- * @param[in]   p_ias_c      Immediate Alert Service client structure.
- * @param[in]   p_ble_evt    Event received from the BLE stack.
+ * @param[in]   p_ble_evt   Event received from the BLE stack.
+ * @param[in]   p_context   Immediate Alert Service client structure.
  */
-void ble_ias_c_on_ble_evt(ble_ias_c_t * p_ias_c, const ble_evt_t * p_ble_evt);
+void ble_ias_c_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context);
+
 
 /**@brief Function for checking whether the peer's Immediate Alert Service instance and the alert level
  *        characteristic have been discovered.
@@ -150,7 +184,7 @@ void ble_ias_c_on_ble_evt(ble_ias_c_t * p_ias_c, const ble_evt_t * p_ble_evt);
  * @return TRUE if a handle has been assigned to alert_level_handle, meaning it must have been
  *         discovered. FALSE if the handle is invalid.
  */
-static __INLINE bool ble_ias_c_is_discovered(const ble_ias_c_t * p_ias_c)
+static __INLINE bool ble_ias_c_is_discovered(ble_ias_c_t const * p_ias_c)
 {
     return (p_ias_c->alert_level_char.handle_value != BLE_GATT_HANDLE_INVALID);
 }
@@ -170,7 +204,7 @@ static __INLINE bool ble_ias_c_is_discovered(const ble_ias_c_t * p_ias_c)
  * @param[in] p_evt   Pointer to the event received from the database discovery module.
  *
  */
-void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, const ble_db_discovery_evt_t * p_evt);
+void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, ble_db_discovery_evt_t const * p_evt);
 
 
 /**@brief Function for assigning handles to an instance of ias_c.
@@ -192,7 +226,6 @@ void ble_ias_c_on_db_disc_evt(ble_ias_c_t * p_ias_c, const ble_db_discovery_evt_
 uint32_t ble_ias_c_handles_assign(ble_ias_c_t * p_ias_c,
                                   uint16_t      conn_handle,
                                   uint16_t      alert_level_handle);
-
 
 
 #ifdef __cplusplus

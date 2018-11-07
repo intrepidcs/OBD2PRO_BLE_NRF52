@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,7 +35,7 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 #include "ble_racp.h"
 #include "ble_srv_common.h"
@@ -181,12 +181,13 @@ static uint32_t srt_char_add(nrf_ble_cgms_t * p_cgms)
 
     len += uint16_encode(p_cgms->session_run_time, &(encoded_initial_srt[len]));
 
-    add_char_params.uuid         = BLE_UUID_CGM_SESSION_RUN_TIME;
-    add_char_params.max_len      = NRF_BLE_CGMS_SRT_LEN;
-    add_char_params.init_len     = len;
-    add_char_params.p_init_value = encoded_initial_srt;
-    add_char_params.read_access  = SEC_JUST_WORKS;
-    add_char_params.write_access = SEC_NO_ACCESS;
+    add_char_params.uuid            = BLE_UUID_CGM_SESSION_RUN_TIME;
+    add_char_params.max_len         = NRF_BLE_CGMS_SRT_LEN;
+    add_char_params.init_len        = len;
+    add_char_params.p_init_value    = encoded_initial_srt;
+    add_char_params.read_access     = SEC_JUST_WORKS;
+    add_char_params.write_access    = SEC_NO_ACCESS;
+    add_char_params.char_props.read = true;
 
     return characteristic_add(p_cgms->service_handle,
                               &add_char_params,
@@ -322,9 +323,9 @@ ret_code_t nrf_ble_cgms_init(nrf_ble_cgms_t * p_cgms, const nrf_ble_cgms_init_t 
  * @param[in]   p_cgms      Glucose Service structure.
  * @param[in]   p_ble_evt  Event received from the BLE stack.
  */
-static void on_write(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
+static void on_write(nrf_ble_cgms_t * p_cgms, ble_evt_t const * p_ble_evt)
 {
-    ble_gatts_evt_write_t * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
+    ble_gatts_evt_write_t const * p_evt_write = &p_ble_evt->evt.gatts_evt.params.write;
 
     cgms_meas_on_write(p_cgms, p_evt_write);
 }
@@ -337,7 +338,7 @@ static void on_write(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
  * @param[in]   p_cgms      Glucose Service structure.
  * @param[in]   p_ble_evt  Event received from the BLE stack.
  */
-static void on_tx_complete(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
+static void on_tx_complete(nrf_ble_cgms_t * p_cgms, ble_evt_t const * p_ble_evt)
 {
     p_cgms->racp_data.racp_proc_records_reported_since_txcomplete = 0;
 
@@ -353,9 +354,9 @@ static void on_tx_complete(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
  * @param[in]   p_cgms      Glucose Service structure.
  * @param[in]   p_ble_evt  Event received from the BLE stack.
  */
-static void on_hvc(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
+static void on_hvc(nrf_ble_cgms_t * p_cgms, ble_evt_t const * p_ble_evt)
 {
-    ble_gatts_evt_hvc_t * p_hvc = &p_ble_evt->evt.gatts_evt.params.hvc;
+    ble_gatts_evt_hvc_t const * p_hvc = &p_ble_evt->evt.gatts_evt.params.hvc;
 
     if (p_hvc->handle == p_cgms->char_handles.racp.value_handle)
     {
@@ -392,9 +393,10 @@ static void on_hvc(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
 }
 
 
-static void on_rw_authorize_request(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_t * p_gatts_evt)
+static void on_rw_authorize_request(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_t const * p_gatts_evt)
 {
-    ble_gatts_evt_rw_authorize_request_t * p_auth_req = &p_gatts_evt->params.authorize_request;
+    ble_gatts_evt_rw_authorize_request_t const * p_auth_req =
+        &p_gatts_evt->params.authorize_request;
 
     cgms_racp_on_rw_auth_req(p_cgms, p_auth_req);
     cgms_socp_on_rw_auth_req(p_cgms, p_auth_req);
@@ -402,8 +404,9 @@ static void on_rw_authorize_request(nrf_ble_cgms_t * p_cgms, ble_gatts_evt_t * p
 }
 
 
-void nrf_ble_cgms_on_ble_evt(nrf_ble_cgms_t * p_cgms, ble_evt_t * p_ble_evt)
+void nrf_ble_cgms_on_ble_evt(ble_evt_t const * p_ble_evt, void * p_context)
 {
+    nrf_ble_cgms_t * p_cgms = (nrf_ble_cgms_t *)p_context;
 
     switch (p_ble_evt->header.evt_id)
     {

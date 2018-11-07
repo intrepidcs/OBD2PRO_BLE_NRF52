@@ -1,30 +1,30 @@
 /**
- * Copyright (c) 2016 - 2017, Nordic Semiconductor ASA
- * 
+ * Copyright (c) 2016 - 2018, Nordic Semiconductor ASA
+ *
  * All rights reserved.
- * 
+ *
  * Redistribution and use in source and binary forms, with or without modification,
  * are permitted provided that the following conditions are met:
- * 
+ *
  * 1. Redistributions of source code must retain the above copyright notice, this
  *    list of conditions and the following disclaimer.
- * 
+ *
  * 2. Redistributions in binary form, except as embedded into a Nordic
  *    Semiconductor ASA integrated circuit in a product or a software update for
  *    such product, must reproduce the above copyright notice, this list of
  *    conditions and the following disclaimer in the documentation and/or other
  *    materials provided with the distribution.
- * 
+ *
  * 3. Neither the name of Nordic Semiconductor ASA nor the names of its
  *    contributors may be used to endorse or promote products derived from this
  *    software without specific prior written permission.
- * 
+ *
  * 4. This software, with or without modification, must only be used with a
  *    Nordic Semiconductor ASA integrated circuit.
- * 
+ *
  * 5. Any software provided in binary form under this license must not be reverse
  *    engineered, decompiled, modified and/or disassembled.
- * 
+ *
  * THIS SOFTWARE IS PROVIDED BY NORDIC SEMICONDUCTOR ASA "AS IS" AND ANY EXPRESS
  * OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES
  * OF MERCHANTABILITY, NONINFRINGEMENT, AND FITNESS FOR A PARTICULAR PURPOSE ARE
@@ -35,32 +35,31 @@
  * HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT
  * LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT
  * OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
- * 
+ *
  */
 
 #ifndef NRF_DRV_USBD_H__
 #define NRF_DRV_USBD_H__
 
-#include "nrf_drv_common.h"
 #include "sdk_errors.h"
 #include "nrf_usbd.h"
 #include <stdint.h>
 #include <stdbool.h>
 #include "app_util.h"
+#include "nrf_drv_usbd_errata.h"
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
 /**
- * @defgroup nrf_drv_usbd USB Device raw IP HAL and driver
+ * @defgroup nrf_drv_usbd USB Device HAL and driver
  * @ingroup nrf_drivers
  * @brief @tagAPI52840 USB Device APIs.
  * @details The USB Device  HAL provides basic APIs for accessing
  * the registers of the USBD.
  * The USB Device driver provides APIs on a higher level.
- */
-
-/**
- * @ingroup  nrf_drv_usbd
- * @defgroup nrf_usbdraw_drv USB Device raw IP driver
  *
- * @brief @tagAPI52840 USB Device raw IP driver.
  * @{
  */
 
@@ -188,6 +187,7 @@ typedef enum
     NRF_DRV_USBD_EVT_RESET,      /**< Reset condition on USB bus detected */
     NRF_DRV_USBD_EVT_SUSPEND,    /**< This device should go to suspend mode now */
     NRF_DRV_USBD_EVT_RESUME,     /**< This device should resume from suspend now */
+    NRF_DRV_USBD_EVT_WUREQ,      /**< Wakeup request - the USBD peripheral is ready to generate WAKEUP signal after exiting low power mode. */
     NRF_DRV_USBD_EVT_SETUP,      /**< Setup frame received and decoded */
     NRF_DRV_USBD_EVT_EPTRANSFER, /**<
                                   * For Rx (OUT: Host->Device):
@@ -487,7 +487,11 @@ ret_code_t nrf_drv_usbd_uninit(void);
  * @brief Enable the USBD port
  *
  * After calling this function USBD peripheral would be enabled.
- * It means that High Frequency clock would be requested and USB LDO would be enabled.
+ * The USB LDO would be enabled.
+ * Enabled USBD peripheral would request HFCLK.
+ * This function does not enable external oscillator, so if it is not enabled by other part of the
+ * program after enabling USBD driver HFINT would be used for the USBD peripheral.
+ * It is perfectly fine until USBD is started. See @ref nrf_drv_usbd_start.
  *
  * In normal situation this function should be called in reaction to USBDETECTED
  * event from POWER peripheral.
@@ -517,6 +521,8 @@ void nrf_drv_usbd_disable(void);
  * Call this function when USBD power LDO regulator is ready - on USBPWRRDY event
  * from POWER peripheral.
  *
+ * Before USBD interrupts are enabled, external HFXO is requested.
+ *
  * @param enable_sof The flag that is used to enable SOF processing.
  *                   If it is false, SOF interrupt is left disabled and will not be generated.
  *                   This improves power saving if SOF is not required.
@@ -532,6 +538,8 @@ void nrf_drv_usbd_start(bool enable_sof);
  * @brief Stop USB functionality
  *
  * This function disables USBD pull-up and interrupts.
+ *
+ * The HFXO request is released in this function.
  *
  * @note
  * This function can also be used to logically disconnect USB from the HOST that
@@ -563,6 +571,97 @@ bool nrf_drv_usbd_is_enabled(void);
  * @note The USBD peripheral interrupt state is checked
  */
 bool nrf_drv_usbd_is_started(void);
+
+/**
+ * @brief Suspend USBD operation
+ *
+ * The USBD peripheral is forced to go into the low power mode.
+ * The function has to be called in the reaction to @ref NRF_DRV_USBD_EVT_SUSPEND event
+ * when the firmware is ready.
+ *
+ * After successful call of this function most of the USBD registers would be unavailable.
+ *
+ * @note Check returned value for the feedback if suspending was successful.
+ *
+ * @retval true  USBD peripheral successfully suspended
+ * @retval false USBD peripheral was not suspended due to resume detection.
+ *
+ */
+bool nrf_drv_usbd_suspend(void);
+
+/**
+ * @brief Start wake up procedure
+ *
+ * The USBD peripheral is forced to quit the low power mode.
+ * After calling this function all the USBD registers would be available.
+ *
+ * The hardware starts measuring time when wake up is possible.
+ * This may take 0-5&nbsp;ms depending on how long the SUSPEND state was kept on the USB line.
+
+ * When NRF_DRV_USBD_EVT_WUREQ event is generated it means that Wake Up signaling has just been
+ * started on the USB lines.
+ *
+ * @note Do not expect only @ref NRF_DRV_USBD_EVT_WUREQ event.
+ *       There always may appear @ref NRF_DRV_USBD_EVT_RESUME event.
+ * @note NRF_DRV_USBD_EVT_WUREQ event means that Remote WakeUp signal
+ *       has just begun to be generated.
+ *       This may take up to 20&nbsp;ms for the bus to become active.
+ *
+ * @retval true WakeUp procedure started.
+ * @retval false No WakeUp procedure started - bus is already active.
+ */
+bool nrf_drv_usbd_wakeup_req(void);
+
+/**
+ * @brief Check if USBD is in SUSPEND mode
+ *
+ * @note This is the information about peripheral itself, not about the bus state.
+ *
+ * @retval true  USBD peripheral is suspended
+ * @retval false USBD peripheral is active
+ */
+bool nrf_drv_usbd_suspend_check(void);
+
+/**
+ * @brief Enable only interrupts that should be processed in SUSPEND mode
+ *
+ * Auxiliary function to help with SUSPEND mode integration.
+ * It enables only the interrupts that can be properly processed without stable HFCLK.
+ *
+ * Normally all the interrupts are enabled.
+ * Use this function to suspend interrupt processing that may require stable HFCLK until the
+ * clock is enabled.
+ *
+ * @sa nrf_drv_usbd_active_irq_config
+ */
+void nrf_drv_usbd_suspend_irq_config(void);
+
+/**
+ * @brief Default active interrupt configuration
+ *
+ * Default interrupt configuration.
+ * Use in a pair with @ref nrf_drv_usbd_active_irq_config.
+ *
+ * @sa nrf_drv_usbd_suspend_irq_config
+ */
+void nrf_drv_usbd_active_irq_config(void);
+
+/**
+ * @brief Check the bus state
+ *
+ * This function checks if the bus state is suspended
+ *
+ * @note The value returned by this function changes on SUSPEND and RESUME event processing.
+ *
+ * @retval true  USBD bus is suspended
+ * @retval false USBD bus is active
+ */
+bool nrf_drv_usbd_bus_suspend_check(void);
+
+/**
+ * @brief Force the bus state to active
+ */
+void nrf_drv_usbd_force_bus_wakeup(void);
 
 /**
  * @brief Configure packet size that should be supported by the endpoint
@@ -620,6 +719,13 @@ void nrf_drv_usbd_ep_enable(nrf_drv_usbd_ep_t ep);
  * @param ep Endpoint number to disable
  */
 void nrf_drv_usbd_ep_disable(nrf_drv_usbd_ep_t ep);
+
+/**
+ * @brief Disable all endpoints except for EP0
+ *
+ * Disable all endpoints that can be disabled in USB device while it is still active.
+ */
+void nrf_drv_usbd_ep_default_config(void);
 
 /**
  * @brief Start sending data over endpoint
@@ -765,6 +871,13 @@ void nrf_drv_usbd_ep_stall_clear(nrf_drv_usbd_ep_t ep);
 bool nrf_drv_usbd_ep_stall_check(nrf_drv_usbd_ep_t ep);
 
 /**
+ * @brief Clear current endpoint data toggle
+ *
+ * @param ep Endpoint number to clear
+ */
+void nrf_drv_usbd_ep_dtoggle_clear(nrf_drv_usbd_ep_t ep);
+
+/**
  * @brief Get parsed setup data
  *
  * Function fills the parsed setup data structure.
@@ -789,9 +902,6 @@ void nrf_drv_usbd_setup_data_clear(void);
  *
  * This function acknowledges setup when SETUP command was received and processed.
  * It has to be called if no data respond for the SETUP command is sent.
- *
- * When there is any data transmission after SETUP command the data transmission
- * itself would clear the endpoint.
  */
 void nrf_drv_usbd_setup_clear(void);
 
@@ -811,7 +921,7 @@ void nrf_drv_usbd_setup_stall(void);
 * @endcode
 * This function would check it again, but it makes it inside critical section.
 */
-void usbd_drv_ep_abort(nrf_drv_usbd_ep_t ep);
+void nrf_drv_usbd_ep_abort(nrf_drv_usbd_ep_t ep);
 
 /**
  * @brief Get the information about expected transfer SETUP data direction
@@ -829,6 +939,10 @@ nrf_drv_usbd_ep_t nrf_drv_usbd_last_setup_dir_get(void);
  * @param[in] ep  OUT endpoint ID
  */
 void nrf_drv_usbd_transfer_out_drop(nrf_drv_usbd_ep_t ep);
+
+#ifdef __cplusplus
+}
+#endif
 
 /** @} */
 #endif /* NRF_DRV_USBD_H__ */

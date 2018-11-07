@@ -1,6 +1,6 @@
 /*
 
-Copyright (c) 2010 - 2017, Nordic Semiconductor ASA
+Copyright (c) 2010 - 2018, Nordic Semiconductor ASA
 
 All rights reserved.
 
@@ -44,7 +44,7 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
 /* MDK version */
 #define MDK_MAJOR_VERSION   8
-#define MDK_MINOR_VERSION   12
+#define MDK_MINOR_VERSION   17
 #define MDK_MICRO_VERSION   0
 
 /* Redefine "old" too-generic name NRF52 to NRF52832_XXAA to keep backwards compatibility. */
@@ -54,8 +54,8 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
     #endif
 #endif
 
-/* Define NRF52_SERIES for common use in nRF52 series devices. */
-#if defined (NRF52832_XXAA) || defined (NRF52840_XXAA)
+/* Define NRF52_SERIES for common use in nRF52 series devices. Only if not previously defined. */
+#if defined (NRF52810_XXAA) || defined (NRF52832_XXAA) || defined (NRF52832_XXAB) || defined (NRF52840_XXAA)
     #ifndef NRF52_SERIES
         #define NRF52_SERIES
     #endif
@@ -75,19 +75,26 @@ OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
         #include "nrf51.h"
         #include "nrf51_bitfields.h"
         #include "nrf51_deprecated.h"
+    
+    #elif defined (NRF52810_XXAA)
+        #include "nrf52810.h"
+        #include "nrf52810_bitfields.h"
+        #include "nrf51_to_nrf52810.h"
+        #include "nrf52_to_nrf52810.h"
+    #elif defined (NRF52832_XXAA) || defined (NRF52832_XXAB)
+        #include "nrf52.h"
+        #include "nrf52_bitfields.h"
+        #include "nrf51_to_nrf52.h"
+        #include "nrf52_name_change.h"
     #elif defined (NRF52840_XXAA)
         #include "nrf52840.h"
         #include "nrf52840_bitfields.h"
         #include "nrf51_to_nrf52840.h"
         #include "nrf52_to_nrf52840.h"
-    #elif defined (NRF52832_XXAA)
-        #include "nrf52.h"
-        #include "nrf52_bitfields.h"
-        #include "nrf51_to_nrf52.h"
-        #include "nrf52_name_change.h"
+    
     #else
         #error "Device must be defined. See nrf.h."
-    #endif /* NRF51, NRF52832_XXAA, NRF52840_XXAA */
+    #endif /* NRF51, NRF52810_XXAA, NRF52832_XXAA, NRF52832_XXAB, NRF52840_XXAA */
 
     #include "compiler_abstraction.h"
 
